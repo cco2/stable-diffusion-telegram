@@ -14,10 +14,6 @@ load_dotenv()
 API_KEY = os.getenv('API_KEY')
 bot = telebot.TeleBot(API_KEY)
 
-@bot.message_handler(commands=['Greet'])
-def greet(message):
-    bot.reply_to(message, "Hey! How's it going?")
-
 def send_prompt(message):
     seed = random.randint(0,4294967295)
     fullcmd = "python " + TXT2IMG + PROMPTARG + "\"" + message.text + "\" " + OTHERARG + SEEDARG + str(seed)
@@ -30,10 +26,14 @@ def send_prompt(message):
 
 @bot.message_handler()
 def hello(message):
-    seed = send_prompt(message)
-    list_of_files = glob.glob('../stable-diffusion/outputs/txt2img-samples/samples/*')
-    latest_file = max(list_of_files, key=os.path.getctime)
-    #bot.send_photo(message.chat.id, photo=open(latest_file,'rb'))
-    bot.send_photo(message.chat.id, photo=open(latest_file,'rb'), caption="\n seed: {}".format(seed))
+    print("chat id = " + str(message.chat.id))
+    if message.chat.id == 5768325303:
+        seed = send_prompt(message)
+        list_of_files = glob.glob('../stable-diffusion/outputs/txt2img-samples/samples/*')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        #bot.send_photo(message.chat.id, photo=open(latest_file,'rb'))
+        bot.send_photo(message.chat.id, photo=open(latest_file,'rb'), caption="\n seed: {}".format(seed))
+    else:
+        print("Unexpected user message")
 
 bot.polling()
