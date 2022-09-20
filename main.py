@@ -105,16 +105,32 @@ def do_stitch(imagepath):
     get_concat_h(im1, im2).save(outbase)
     shutil.copyfile(outbase, LKG_PATH + outbase)
     os.chdir(curdir)
+    return LKG_PATH + outbase
+
+lastpath = ""
+
+@bot.message_handler(commands=['convert'])
+def convert(message):
+    print("lkg")
+    print("chat id = " + str(message.chat.id))
+    if message.chat.id == 5768325303:
+        if lastpath == "":
+            bot.send_message(message.chat.id, "Submit prompt first")
+        else:
+            generate_depth_map(lastpath)
+            outpath = do_stitch(lastpath)
+            bot.send_photo(message.chat.id, photo=open(outpath,'rb'))
+    else:
+        print("Unexpected user message")
 
 @bot.message_handler()
 def hello(message):
     print("chat id = " + str(message.chat.id))
     if message.chat.id == 5768325303:
-        imagepath = generate_ai_image_from_prompt(message)
-        imagepath = './outputs/txt2img-samples/samples\\00301.png'
-        generate_depth_map(imagepath)
-        do_stitch(imagepath)
+        global lastpath
+        lastpath = generate_ai_image_from_prompt(message)
     else:
         print("Unexpected user message")
+
 
 bot.polling()
