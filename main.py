@@ -4,6 +4,9 @@ import subprocess
 import random
 import telebot
 import shutil
+from PIL import Image
+import cv2
+import numpy as np
 from dotenv import load_dotenv
 
 TXT2IMG = "./scripts/txt2img.py "
@@ -13,6 +16,7 @@ SEEDARG = "--seed "
 MIDAS_INPUT_PATH = "./input/"
 MIDAS_OUTPUT_PATH = "./output/"
 STITCH_PATH = "../stitch/"
+LKG_PATH = "../LKG/"
 
 load_dotenv()
 API_KEY = os.getenv('API_KEY')
@@ -69,13 +73,47 @@ def generate_depth_map(path):
     os.remove(MIDAS_OUTPUT_PATH + os.path.splitext(base)[0] + ".pfm")
     os.chdir(curdir)
 
+def get_concat_h(im1, im2):
+    dst = Image.new('RGB', (im1.width + im2.width, im1.height))
+    dst.paste(im1, (0, 0))
+    dst.paste(im2, (im1.width, 0))
+    return dst
+
+def do_stitch(imagepath):
+    base = os.path.basename(imagepath)
+    curdir = os.getcwd()
+    os.chdir('../stitch')
+    im1 = Image.open(base)
+    # Turns out PIL does not actually convert "I" to "RGB" accurately...
+    # See:
+    #  https://github.com/python-pillow/Pillow/issues/3159
+    #  https://github.com/python-pillow/Pillow/issues/5642
+    #
+    # so instead, use opencv to convert "I" to "BGR" and then
+    # convert "BGR" to "RGB" so PIL can concatenate easily
+    #
+    #im1 = Image.open("d-" + base)
+    #print(im1.getbands())
+    #arr=np.array(im1)
+    #im = Image.fromarray(arr, mode="RGBA")
+    #im = im1.convert("I")
+
+    image = cv2.imread("d-" + base)
+    im_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    im2 = Image.fromarray(im_rgb)
+    outbase = "s-" + base
+    get_concat_h(im1, im2).save(outbase)
+    shutil.copyfile(outbase, LKG_PATH + outbase)
+    os.chdir(curdir)
+
 @bot.message_handler()
 def hello(message):
     print("chat id = " + str(message.chat.id))
     if message.chat.id == 5768325303:
-        #imagepath = generate_ai_image_from_prompt(message)
+        imagepath = generate_ai_image_from_prompt(message)
         imagepath = './outputs/txt2img-samples/samples\\00301.png'
         generate_depth_map(imagepath)
+        do_stitch(imagepath)
     else:
         print("Unexpected user message")
 
