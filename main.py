@@ -1,4 +1,5 @@
 import os
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, __version__
 import glob
 import subprocess
 import random
@@ -7,6 +8,7 @@ import shutil
 from PIL import Image
 import cv2
 import numpy as np
+from ahk import AHK
 from dotenv import load_dotenv
 
 TXT2IMG = "./scripts/txt2img.py "
@@ -21,6 +23,7 @@ LKG_PATH = "../LKG/"
 load_dotenv()
 API_KEY = os.getenv('API_KEY')
 bot = telebot.TeleBot(API_KEY)
+connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
 
 def run_cmd(cmd):
     print(cmd)
@@ -120,8 +123,21 @@ def convert(message):
             generate_depth_map(lastpath)
             outpath = do_stitch(lastpath)
             bot.send_photo(message.chat.id, photo=open(outpath,'rb'))
+            upload_to_azure(outpath)
     else:
         print("Unexpected user message")
+
+def load_to_lkg():
+    # From their discord, currently Looking Glass Studio doesn't support a
+    # cmdline interface of any sort. Recommended route is AutoHotKey scripts.
+    # So that's what we're going to try doing here...
+    #ahk = AHK()
+    #win = ahk.win_get(title='Studio')
+    #win.activate()
+    #ahk.key_down('Shift')
+    #ahk.key_press('Tab')
+    #ahk.key_up('Shift')
+    pass
 
 @bot.message_handler()
 def hello(message):
@@ -132,5 +148,20 @@ def hello(message):
     else:
         print("Unexpected user message")
 
+def upload_to_azure(imagepath):
+    try:
+        print("Azure Blob Storage v" + __version__ + " - Python quickstart sample")
+
+        blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+        container_name = "hackathon"
+        container_client = blob_service_client.get_container_client(container_name)
+        upload_file_path = imagepath
+        blob_name = os.path.basename(upload_file_path)
+        blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+        with open(upload_file_path, "rb") as data:
+            blob_client.upload_blob(data)
+    except Exception as ex:
+        print('Exception:')
+        print(ex)
 
 bot.polling()
